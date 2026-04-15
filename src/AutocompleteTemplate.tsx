@@ -9,7 +9,7 @@
  * Toggle the `state` variable below to preview each layout.
  */
 
-const state: 'default' | 'typing' = 'default'; // ← change to 'typing' to see typing state
+const state: 'default' | 'typing' = 'typing'; // ← change to 'typing' to see typing state
 
 /* ─────────────────────────────────────────────────────── mock data ── */
 
@@ -164,9 +164,6 @@ function TypingProductCard({ product }: { product: typeof typingProducts[0] }) {
 export default function AutocompleteTemplate() {
     return (
         <div className="min-h-screen bg-gradient-to-br from-slate-50 via-violet-50/30 to-indigo-50 flex flex-col items-center pt-16 pb-20 px-4 font-sans">
-
-            {/* Google Font */}
-            <style>{`@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap'); * { font-family: 'Inter', sans-serif; }`}</style>
 
             {/* ── Header / search bar ── */}
             <div className="w-full max-w-3xl">

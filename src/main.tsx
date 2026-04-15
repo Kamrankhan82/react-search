@@ -1,17 +1,12 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import Autocomplete from './Autocomplete.tsx'
-import SearchResultPage from './SearchResultPage.tsx'
+import { StrictMode } from 'react';
+import { createRoot } from 'react-dom/client';
+import './index.css';
+import App from './App';
 
-createRoot(document.getElementById('st-autocomplete-container')!).render(
-  <StrictMode>
-    <Autocomplete />
-  </StrictMode>,
-)
-
-createRoot(document.getElementById('st-search-container')!).render(
-  <StrictMode>
-    <SearchResultPage/>
-  </StrictMode>
-)
+// Single root — BrowserRouter inside App handles both Autocomplete and SearchResultPage
+// via React portals so each component still mounts in its original DOM container.
+createRoot(document.getElementById('root')!).render(
+    <StrictMode>
+        <App />
+    </StrictMode>
+);

@@ -1,0 +1,1264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Search Results</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    /* ─── Reset & Base ─────────────────────────────────────── */
+    *, *::before, *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg:          #0f1117;
+      --surface:     #1a1d27;
+      --surface-2:   #22263a;
+      --border:      #2e3248;
+      --accent:      #6c63ff;
+      --accent-soft: rgba(108, 99, 255, 0.15);
+      --text-1:      #eef0f6;
+      --text-2:      #9299b8;
+      --text-3:      #5c6382;
+      --danger:      #ff5e7a;
+      --success:     #2dd4a7;
+      --radius:      12px;
+      --radius-sm:   8px;
+      --shadow:      0 4px 24px rgba(0, 0, 0, 0.4);
+    }
+
+    html { scroll-behavior: smooth; }
+
+    body {
+      font-family: 'Inter', sans-serif;
+      background: var(--bg);
+      color: var(--text-1);
+      min-height: 100vh;
+      line-height: 1.5;
+    }
+
+    /* ─── Header / Search Bar ──────────────────────────────── */
+    .site-header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      backdrop-filter: blur(12px);
+    }
+
+    .logo {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--accent);
+      letter-spacing: -0.5px;
+      white-space: nowrap;
+    }
+
+    .search-bar {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 999px;
+      padding: 0 16px;
+      gap: 10px;
+      max-width: 640px;
+      transition: border-color 0.2s;
+    }
+
+    .search-bar:focus-within {
+      border-color: var(--accent);
+      box-shadow: 0 0 0 3px var(--accent-soft);
+    }
+
+    .search-bar svg {
+      flex-shrink: 0;
+      color: var(--text-3);
+    }
+
+    .search-bar input {
+      flex: 1;
+      background: none;
+      border: none;
+      outline: none;
+      color: var(--text-1);
+      font-size: 0.95rem;
+      font-family: inherit;
+      padding: 11px 0;
+    }
+
+    .search-bar input::placeholder { color: var(--text-3); }
+
+    .search-bar .btn-search {
+      background: var(--accent);
+      color: #fff;
+      border: none;
+      border-radius: 999px;
+      padding: 6px 18px;
+      font-size: 0.875rem;
+      font-weight: 600;
+      cursor: pointer;
+      font-family: inherit;
+      transition: opacity 0.2s, transform 0.1s;
+    }
+
+    .search-bar .btn-search:hover { opacity: 0.88; }
+    .search-bar .btn-search:active { transform: scale(0.96); }
+
+    /* ─── Layout ───────────────────────────────────────────── */
+    .page-wrapper {
+      display: flex;
+      gap: 24px;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 28px 24px;
+    }
+
+    /* ─── Sidebar / Filters ────────────────────────────────── */
+    .sidebar {
+      width: 260px;
+      flex-shrink: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .sidebar-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+
+    .sidebar-header h2 {
+      font-size: 1rem;
+      font-weight: 600;
+    }
+
+    .btn-clear {
+      font-size: 0.8rem;
+      color: var(--accent);
+      background: none;
+      border: none;
+      cursor: pointer;
+      font-family: inherit;
+      font-weight: 500;
+      padding: 2px 0;
+    }
+
+    .btn-clear:hover { text-decoration: underline; }
+
+    /* Filter accordion card */
+    .filter-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+
+    .filter-card summary {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 14px 16px;
+      cursor: pointer;
+      user-select: none;
+      font-weight: 500;
+      font-size: 0.9rem;
+      list-style: none;
+      transition: background 0.15s;
+    }
+
+    .filter-card summary:hover { background: var(--surface-2); }
+
+    .filter-card summary::after {
+      content: '';
+      width: 8px;
+      height: 8px;
+      border-right: 2px solid var(--text-3);
+      border-bottom: 2px solid var(--text-3);
+      transform: rotate(45deg) translateY(-2px);
+      transition: transform 0.2s;
+      flex-shrink: 0;
+    }
+
+    .filter-card[open] summary::after {
+      transform: rotate(-135deg) translateY(-2px);
+    }
+
+    .filter-body {
+      padding: 4px 16px 14px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    /* Checkbox rows */
+    .check-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-2);
+      transition: color 0.15s;
+    }
+
+    .check-row:hover { color: var(--text-1); }
+
+    .check-row input[type="checkbox"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 17px;
+      height: 17px;
+      border: 2px solid var(--border);
+      border-radius: 4px;
+      background: var(--surface-2);
+      cursor: pointer;
+      flex-shrink: 0;
+      position: relative;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .check-row input[type="checkbox"]:checked {
+      background: var(--accent);
+      border-color: var(--accent);
+    }
+
+    .check-row input[type="checkbox"]:checked::after {
+      content: '';
+      position: absolute;
+      left: 3px;
+      top: 0px;
+      width: 5px;
+      height: 9px;
+      border-right: 2px solid #fff;
+      border-bottom: 2px solid #fff;
+      transform: rotate(45deg);
+    }
+
+    .check-row .count {
+      margin-left: auto;
+      font-size: 0.78rem;
+      color: var(--text-3);
+    }
+
+    /* Color swatches */
+    .color-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      padding: 4px 0;
+    }
+
+    .color-swatch {
+      width: 26px;
+      height: 26px;
+      border-radius: 50%;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: transform 0.15s, border-color 0.15s;
+      position: relative;
+    }
+
+    .color-swatch:hover { transform: scale(1.15); }
+
+    .color-swatch input[type="radio"] {
+      position: absolute;
+      opacity: 0;
+      width: 0;
+      height: 0;
+    }
+
+    .color-swatch input:checked + span {
+      outline: 2px solid #fff;
+      outline-offset: 2px;
+      border-radius: 50%;
+      position: absolute;
+      inset: -3px;
+    }
+
+    .color-swatch span {
+      display: block;
+      width: 100%;
+      height: 100%;
+      border-radius: 50%;
+    }
+
+    /* Price range */
+    .price-range {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .price-inputs {
+      display: flex;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .price-inputs input[type="number"] {
+      width: 0;
+      flex: 1;
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-1);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 7px 10px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+
+    .price-inputs input:focus { border-color: var(--accent); }
+    .price-inputs span { color: var(--text-3); font-size: 0.8rem; }
+
+    input[type="range"] {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 100%;
+      height: 4px;
+      border-radius: 2px;
+      background: linear-gradient(to right, var(--accent) 60%, var(--surface-2) 60%);
+      outline: none;
+      cursor: pointer;
+    }
+
+    input[type="range"]::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      width: 18px;
+      height: 18px;
+      border-radius: 50%;
+      background: var(--accent);
+      border: 3px solid var(--bg);
+      box-shadow: 0 2px 8px rgba(108,99,255,0.5);
+      cursor: pointer;
+    }
+
+    /* Star rating filter */
+    .rating-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 0.875rem;
+      color: var(--text-2);
+    }
+
+    .rating-row:hover { color: var(--text-1); }
+
+    .rating-row input[type="radio"] { display: none; }
+
+    .stars {
+      display: flex;
+      gap: 2px;
+    }
+
+    .star { color: #f5a623; font-size: 0.9rem; }
+    .star.empty { color: var(--text-3); }
+
+    /* ─── Main Content ─────────────────────────────────────── */
+    .main-content {
+      flex: 1;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* Results meta bar */
+    .results-meta {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 12px;
+    }
+
+    .results-text {
+      font-size: 0.95rem;
+      color: var(--text-2);
+    }
+
+    .results-text strong {
+      color: var(--text-1);
+      font-weight: 600;
+    }
+
+    /* Active filter chips */
+    .active-filters {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      align-items: center;
+    }
+
+    .filter-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      color: var(--accent);
+      border-radius: 999px;
+      padding: 4px 12px;
+      font-size: 0.8rem;
+      font-weight: 500;
+    }
+
+    .filter-chip .chip-remove {
+      background: none;
+      border: none;
+      color: inherit;
+      cursor: pointer;
+      font-size: 1rem;
+      line-height: 1;
+      padding: 0;
+      display: flex;
+      align-items: center;
+    }
+
+    /* Sort dropdown */
+    .sort-select {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--text-1);
+      font-family: inherit;
+      font-size: 0.875rem;
+      padding: 8px 32px 8px 12px;
+      outline: none;
+      cursor: pointer;
+      -webkit-appearance: none;
+      appearance: none;
+      background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%239299b8' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='6 9 12 15 18 9'%3E%3C/polyline%3E%3C/svg%3E");
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+      transition: border-color 0.2s;
+    }
+
+    .sort-select:focus { border-color: var(--accent); }
+
+    /* View toggle (grid / list) */
+    .view-toggle {
+      display: flex;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      overflow: hidden;
+    }
+
+    .view-btn {
+      background: none;
+      border: none;
+      color: var(--text-3);
+      cursor: pointer;
+      padding: 8px 12px;
+      display: flex;
+      align-items: center;
+      transition: background 0.15s, color 0.15s;
+    }
+
+    .view-btn.active,
+    .view-btn:hover {
+      background: var(--surface-2);
+      color: var(--accent);
+    }
+
+    /* ─── Product Grid ─────────────────────────────────────── */
+    .product-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 20px;
+    }
+
+    .product-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.2s, box-shadow 0.2s, border-color 0.2s;
+      cursor: pointer;
+    }
+
+    .product-card:hover {
+      transform: translateY(-4px);
+      box-shadow: var(--shadow);
+      border-color: var(--accent);
+    }
+
+    .product-image-wrap {
+      position: relative;
+      aspect-ratio: 4/3;
+      background: var(--surface-2);
+      overflow: hidden;
+    }
+
+    .product-image-wrap img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      transition: transform 0.35s;
+    }
+
+    .product-card:hover .product-image-wrap img {
+      transform: scale(1.06);
+    }
+
+    .badge {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 0.7rem;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      padding: 3px 8px;
+      border-radius: 4px;
+      text-transform: uppercase;
+    }
+
+    .badge--sale    { background: var(--danger);  color: #fff; }
+    .badge--new     { background: var(--success);  color: #0a1a14; }
+    .badge--popular { background: var(--accent);   color: #fff; }
+
+    .btn-wishlist {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      background: rgba(15, 17, 23, 0.7);
+      border: none;
+      border-radius: 50%;
+      width: 32px;
+      height: 32px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--text-2);
+      backdrop-filter: blur(4px);
+      transition: color 0.15s, background 0.15s;
+    }
+
+    .btn-wishlist:hover { color: var(--danger); background: rgba(255, 94, 122, 0.15); }
+
+    .product-info {
+      padding: 14px 14px 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      flex: 1;
+    }
+
+    .product-brand {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.8px;
+      text-transform: uppercase;
+      color: var(--accent);
+    }
+
+    .product-name {
+      font-size: 0.9rem;
+      font-weight: 500;
+      color: var(--text-1);
+      line-height: 1.35;
+      /* Clamp to 2 lines */
+      display: -webkit-box;
+      -webkit-line-clamp: 2;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+    }
+
+    .product-rating {
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+
+    .product-rating .stars { font-size: 0.78rem; }
+
+    .product-rating .rating-count {
+      font-size: 0.75rem;
+      color: var(--text-3);
+    }
+
+    .product-price-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      margin-top: 2px;
+    }
+
+    .price-current {
+      font-size: 1.05rem;
+      font-weight: 700;
+      color: var(--text-1);
+    }
+
+    .price-original {
+      font-size: 0.82rem;
+      color: var(--text-3);
+      text-decoration: line-through;
+    }
+
+    .price-discount {
+      font-size: 0.78rem;
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    .btn-add-cart {
+      margin-top: 10px;
+      width: 100%;
+      background: var(--accent-soft);
+      border: 1px solid var(--accent);
+      border-radius: var(--radius-sm);
+      color: var(--accent);
+      font-family: inherit;
+      font-size: 0.85rem;
+      font-weight: 600;
+      padding: 9px;
+      cursor: pointer;
+      transition: background 0.2s, color 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    .btn-add-cart:hover {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    /* ─── Skeleton / Loading state ─────────────────────────── */
+    .skeleton {
+      background: linear-gradient(90deg, var(--surface) 25%, var(--surface-2) 50%, var(--surface) 75%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 6px;
+    }
+
+    @keyframes shimmer {
+      0%   { background-position: 200% 0; }
+      100% { background-position: -200% 0; }
+    }
+
+    /* ─── Pagination ───────────────────────────────────────── */
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 6px;
+      margin-top: 8px;
+    }
+
+    .page-btn {
+      width: 38px;
+      height: 38px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: var(--radius-sm);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      color: var(--text-2);
+      font-size: 0.875rem;
+      font-weight: 500;
+      cursor: pointer;
+      font-family: inherit;
+      transition: background 0.15s, border-color 0.15s, color 0.15s;
+    }
+
+    .page-btn:hover,
+    .page-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    .page-btn:disabled {
+      opacity: 0.35;
+      cursor: not-allowed;
+    }
+
+    /* ─── Empty / No Results State ─────────────────────────── */
+    .empty-state {
+      grid-column: 1 / -1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 60px 20px;
+      gap: 12px;
+      color: var(--text-3);
+      text-align: center;
+    }
+
+    .empty-state svg { opacity: 0.4; }
+
+    .empty-state h3 {
+      font-size: 1.1rem;
+      font-weight: 600;
+      color: var(--text-2);
+    }
+
+    .empty-state p { font-size: 0.875rem; }
+
+    /* ─── Responsive ───────────────────────────────────────── */
+    @media (max-width: 900px) {
+      .page-wrapper { flex-direction: column; }
+      .sidebar { width: 100%; }
+    }
+
+    @media (max-width: 600px) {
+      .site-header { padding: 12px 16px; gap: 12px; }
+      .logo { font-size: 1rem; }
+      .page-wrapper { padding: 16px; }
+      .product-grid { grid-template-columns: repeat(auto-fill, minmax(160px, 1fr)); gap: 14px; }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══════════════ HEADER ═══════════════ -->
+  <header class="site-header">
+    <div class="logo">⚡ ShopX</div>
+
+    <div class="search-bar">
+      <!-- Search icon -->
+      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+      </svg>
+
+      <!--
+        JS HOOK: id="search-input"
+        Listen: input event for live search
+                keydown (Enter) to submit
+      -->
+      <input
+        id="search-input"
+        type="search"
+        placeholder="Search for products, brands…"
+        value="Running shoes"
+        autocomplete="off"
+      />
+      <button class="btn-search" id="btn-search-submit">Search</button>
+    </div>
+  </header>
+
+  <!-- ═══════════════ PAGE LAYOUT ═══════════════ -->
+  <div class="page-wrapper">
+
+    <!-- ══════════ SIDEBAR — FILTERS ══════════ -->
+    <aside class="sidebar" id="sidebar-filters">
+
+      <div class="sidebar-header">
+        <h2>Filters</h2>
+        <!--
+          JS HOOK: id="btn-clear-filters"
+          Click: uncheck all checkboxes, reset selects, reload results
+        -->
+        <button class="btn-clear" id="btn-clear-filters">Clear all</button>
+      </div>
+
+      <!-- ── Category ── -->
+      <!--
+        JS HOOK: data-filter="category"
+        Listen: change event on checkboxes inside → re-query results
+      -->
+      <details class="filter-card" open data-filter="category">
+        <summary>Category</summary>
+        <div class="filter-body">
+          <label class="check-row">
+            <input type="checkbox" name="category" value="running" checked />
+            Running <span class="count">142</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="category" value="training" />
+            Training <span class="count">89</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="category" value="casual" />
+            Casual <span class="count">203</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="category" value="hiking" />
+            Hiking <span class="count">57</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="category" value="basketball" />
+            Basketball <span class="count">34</span>
+          </label>
+        </div>
+      </details>
+
+      <!-- ── Brand ── -->
+      <details class="filter-card" open data-filter="brand">
+        <summary>Brand</summary>
+        <div class="filter-body">
+          <label class="check-row">
+            <input type="checkbox" name="brand" value="nike" checked />
+            Nike <span class="count">68</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="brand" value="adidas" />
+            Adidas <span class="count">55</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="brand" value="puma" />
+            Puma <span class="count">29</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="brand" value="newbalance" />
+            New Balance <span class="count">41</span>
+          </label>
+          <label class="check-row">
+            <input type="checkbox" name="brand" value="asics" />
+            Asics <span class="count">18</span>
+          </label>
+        </div>
+      </details>
+
+      <!-- ── Price Range ── -->
+      <!--
+        JS HOOK: data-filter="price"
+        id="price-min", id="price-max", id="price-slider"
+        Listen: input event on slider or number inputs → filter results
+      -->
+      <details class="filter-card" open data-filter="price">
+        <summary>Price Range</summary>
+        <div class="filter-body">
+          <div class="price-range">
+            <input type="range" id="price-slider" min="0" max="500" value="300" step="10" />
+            <div class="price-inputs">
+              <input type="number" id="price-min" placeholder="Min" value="0" min="0" />
+              <span>—</span>
+              <input type="number" id="price-max" placeholder="Max" value="300" max="500" />
+            </div>
+          </div>
+        </div>
+      </details>
+
+      <!-- ── Size ── -->
+      <details class="filter-card" data-filter="size">
+        <summary>Size (US)</summary>
+        <div class="filter-body">
+          <div class="color-grid">
+            <!-- Reusing color-grid layout for size chips -->
+            <style>
+              .size-chip {
+                min-width: 40px;
+                height: 36px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                background: var(--surface-2);
+                border: 1px solid var(--border);
+                border-radius: var(--radius-sm);
+                font-size: 0.8rem;
+                font-weight: 500;
+                cursor: pointer;
+                transition: background 0.15s, border-color 0.15s, color 0.15s;
+                padding: 0 8px;
+              }
+              .size-chip:has(input:checked) {
+                background: var(--accent-soft);
+                border-color: var(--accent);
+                color: var(--accent);
+              }
+              .size-chip input { display: none; }
+            </style>
+            <label class="size-chip"><input type="checkbox" name="size" value="7" />7</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="7.5" />7.5</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="8" />8</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="8.5" checked />8.5</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="9" />9</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="9.5" />9.5</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="10" />10</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="10.5" />10.5</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="11" />11</label>
+            <label class="size-chip"><input type="checkbox" name="size" value="12" />12</label>
+          </div>
+        </div>
+      </details>
+
+      <!-- ── Color ── -->
+      <details class="filter-card" data-filter="color">
+        <summary>Color</summary>
+        <div class="filter-body">
+          <div class="color-grid">
+            <label class="color-swatch" title="Black">
+              <input type="checkbox" name="color" value="black" />
+              <span style="background:#1a1a2e; border: 1px solid #444;"></span>
+            </label>
+            <label class="color-swatch" title="White">
+              <input type="checkbox" name="color" value="white" />
+              <span style="background:#f5f5f5; border: 1px solid #ccc;"></span>
+            </label>
+            <label class="color-swatch" title="Red">
+              <input type="checkbox" name="color" value="red" />
+              <span style="background:#e63946;"></span>
+            </label>
+            <label class="color-swatch" title="Blue">
+              <input type="checkbox" name="color" value="blue" />
+              <span style="background:#4361ee;"></span>
+            </label>
+            <label class="color-swatch" title="Green">
+              <input type="checkbox" name="color" value="green" />
+              <span style="background:#2dc653;"></span>
+            </label>
+            <label class="color-swatch" title="Yellow">
+              <input type="checkbox" name="color" value="yellow" />
+              <span style="background:#ffd60a;"></span>
+            </label>
+            <label class="color-swatch" title="Orange">
+              <input type="checkbox" name="color" value="orange" />
+              <span style="background:#f77f00;"></span>
+            </label>
+            <label class="color-swatch" title="Purple">
+              <input type="checkbox" name="color" value="purple" />
+              <span style="background:#7209b7;"></span>
+            </label>
+          </div>
+        </div>
+      </details>
+
+      <!-- ── Rating ── -->
+      <details class="filter-card" data-filter="rating">
+        <summary>Customer Rating</summary>
+        <div class="filter-body">
+          <!--
+            JS HOOK: data-filter="rating"
+            Listen: change on radio inputs → filter results to rating >= value
+          -->
+          <label class="rating-row">
+            <input type="radio" name="rating" value="4" checked />
+            <span class="stars">
+              <span class="star">★</span><span class="star">★</span>
+              <span class="star">★</span><span class="star">★</span>
+              <span class="star empty">★</span>
+            </span>
+            &amp; up
+          </label>
+          <label class="rating-row">
+            <input type="radio" name="rating" value="3" />
+            <span class="stars">
+              <span class="star">★</span><span class="star">★</span>
+              <span class="star">★</span><span class="star empty">★</span>
+              <span class="star empty">★</span>
+            </span>
+            &amp; up
+          </label>
+          <label class="rating-row">
+            <input type="radio" name="rating" value="2" />
+            <span class="stars">
+              <span class="star">★</span><span class="star">★</span>
+              <span class="star empty">★</span><span class="star empty">★</span>
+              <span class="star empty">★</span>
+            </span>
+            &amp; up
+          </label>
+          <label class="rating-row">
+            <input type="radio" name="rating" value="0" />
+            <span style="color: var(--text-3); font-size:0.85rem;">All ratings</span>
+          </label>
+        </div>
+      </details>
+
+    </aside>
+
+    <!-- ══════════ MAIN — RESULTS ══════════ -->
+    <main class="main-content" id="main-results">
+
+      <!-- Results meta bar -->
+      <div class="results-meta">
+        <div>
+          <!--
+            JS HOOK: id="results-count"
+            Update innerText when results load: e.g. "142 results for "Running shoes""
+          -->
+          <p class="results-text">
+            Showing <strong id="results-count">12 of 142</strong> results for
+            <strong id="results-query">"Running shoes"</strong>
+          </p>
+        </div>
+
+        <div style="display:flex; align-items:center; gap:10px; flex-wrap:wrap;">
+          <!-- Active filter chips -->
+          <!--
+            JS HOOK: id="active-filters"
+            Dynamically insert/remove .filter-chip elements as filters change
+          -->
+          <div class="active-filters" id="active-filters">
+            <span class="filter-chip">
+              Nike
+              <button class="chip-remove" data-filter="brand" data-value="nike" aria-label="Remove Nike filter">×</button>
+            </span>
+            <span class="filter-chip">
+              Running
+              <button class="chip-remove" data-filter="category" data-value="running" aria-label="Remove Running filter">×</button>
+            </span>
+          </div>
+
+          <!-- Sort -->
+          <!--
+            JS HOOK: id="sort-select"
+            Listen: change event → re-sort and re-render results
+          -->
+          <select class="sort-select" id="sort-select" aria-label="Sort results">
+            <option value="relevance">Most Relevant</option>
+            <option value="price-asc">Price: Low to High</option>
+            <option value="price-desc">Price: High to Low</option>
+            <option value="rating">Top Rated</option>
+            <option value="newest">Newest</option>
+          </select>
+
+          <!-- View toggle -->
+          <!--
+            JS HOOK: .view-btn[data-view]
+            Click: toggle .active class, switch product-grid to list layout
+          -->
+          <div class="view-toggle">
+            <button class="view-btn active" data-view="grid" aria-label="Grid view">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+              </svg>
+            </button>
+            <button class="view-btn" data-view="list" aria-label="List view">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor">
+                <rect x="3" y="4" width="18" height="3" rx="1"/>
+                <rect x="3" y="10.5" width="18" height="3" rx="1"/>
+                <rect x="3" y="17" width="18" height="3" rx="1"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <!-- Product Grid -->
+      <!--
+        JS HOOK: id="product-grid"
+        Dynamically insert .product-card elements via JS
+        The cards below are just static HTML examples for layout reference
+      -->
+      <div class="product-grid" id="product-grid">
+
+        <!-- ── Product Card 1 ── -->
+        <article class="product-card" data-id="p001">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1542291026-7eec264c27ff?w=400&q=80" alt="Nike Air Zoom Pegasus" loading="lazy" />
+            <span class="badge badge--sale">−20%</span>
+            <button class="btn-wishlist" aria-label="Add to wishlist" data-id="p001">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">Nike</p>
+            <h3 class="product-name">Air Zoom Pegasus 40</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★<span class="star empty">★</span></span>
+              <span class="rating-count">(2,841)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$119.99</span>
+              <span class="price-original">$149.99</span>
+              <span class="price-discount">−20%</span>
+            </div>
+            <button class="btn-add-cart" data-id="p001">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Add to Cart
+            </button>
+          </div>
+        </article>
+
+        <!-- ── Product Card 2 ── -->
+        <article class="product-card" data-id="p002">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1595950653106-6c9ebd614d3a?w=400&q=80" alt="Adidas Ultraboost 23" loading="lazy" />
+            <span class="badge badge--new">New</span>
+            <button class="btn-wishlist" aria-label="Add to wishlist" data-id="p002">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">Adidas</p>
+            <h3 class="product-name">Ultraboost 23 Running Shoe</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★★</span>
+              <span class="rating-count">(1,203)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$189.99</span>
+            </div>
+            <button class="btn-add-cart" data-id="p002">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Add to Cart
+            </button>
+          </div>
+        </article>
+
+        <!-- ── Product Card 3 ── -->
+        <article class="product-card" data-id="p003">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1606107557195-0e29a4b5b4aa?w=400&q=80" alt="New Balance Fresh Foam" loading="lazy" />
+            <span class="badge badge--popular">Popular</span>
+            <button class="btn-wishlist" aria-label="Add to wishlist" data-id="p003">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">New Balance</p>
+            <h3 class="product-name">Fresh Foam X 1080v13</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★<span class="star empty">★</span></span>
+              <span class="rating-count">(874)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$164.99</span>
+              <span class="price-original">$179.99</span>
+              <span class="price-discount">−8%</span>
+            </div>
+            <button class="btn-add-cart" data-id="p003">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Add to Cart
+            </button>
+          </div>
+        </article>
+
+        <!-- ── Product Card 4 ── -->
+        <article class="product-card" data-id="p004">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1520256862855-398228c41684?w=400&q=80" alt="Asics Gel-Nimbus" loading="lazy" />
+            <button class="btn-wishlist" aria-label="Add to wishlist" data-id="p004">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">Asics</p>
+            <h3 class="product-name">Gel-Nimbus 25 Running Shoe</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★★</span>
+              <span class="rating-count">(465)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$159.95</span>
+            </div>
+            <button class="btn-add-cart" data-id="p004">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Add to Cart
+            </button>
+          </div>
+        </article>
+
+        <!-- ── Product Card 5 ── -->
+        <article class="product-card" data-id="p005">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1584735175315-9d5df23be585?w=400&q=80" alt="Puma Velocity Nitro" loading="lazy" />
+            <span class="badge badge--sale">−15%</span>
+            <button class="btn-wishlist" aria-label="Add to wishlist" data-id="p005">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+            </button>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">Puma</p>
+            <h3 class="product-name">Velocity Nitro 2 Running Shoe</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★<span class="star empty">★</span></span>
+              <span class="rating-count">(312)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$109.99</span>
+              <span class="price-original">$129.99</span>
+              <span class="price-discount">−15%</span>
+            </div>
+            <button class="btn-add-cart" data-id="p005">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/></svg>
+              Add to Cart
+            </button>
+          </div>
+        </article>
+
+        <!-- ── Product Card 6 – Out of Stock example ── -->
+        <article class="product-card" data-id="p006" style="opacity: 0.65;">
+          <div class="product-image-wrap">
+            <img src="https://images.unsplash.com/photo-1600185365926-3a2ce3cdb9eb?w=400&q=80" alt="Nike React Infinity Run" loading="lazy" />
+            <span class="badge" style="background: var(--text-3); color: #fff;">Sold Out</span>
+          </div>
+          <div class="product-info">
+            <p class="product-brand">Nike</p>
+            <h3 class="product-name">React Infinity Run Flyknit 4</h3>
+            <div class="product-rating">
+              <span class="stars">★★★★★</span>
+              <span class="rating-count">(1,920)</span>
+            </div>
+            <div class="product-price-row">
+              <span class="price-current">$159.99</span>
+            </div>
+            <button class="btn-add-cart" disabled style="opacity:0.5; cursor:not-allowed;">
+              Out of Stock
+            </button>
+          </div>
+        </article>
+
+      </div><!-- /#product-grid -->
+
+      <!-- ── Empty State (hidden by default — show with JS when results = 0) ── -->
+      <!--
+        JS HOOK: id="empty-state"
+        Show: when search returns 0 results
+        Update #empty-query with the search term
+      -->
+      <div id="empty-state" style="display: none;">
+        <div class="empty-state">
+          <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round">
+            <circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/>
+            <line x1="8" y1="11" x2="14" y2="11"/>
+          </svg>
+          <h3>No results found</h3>
+          <p>We couldn't find anything for <strong id="empty-query">"…"</strong>.<br/>Try adjusting your filters or search for something else.</p>
+        </div>
+      </div>
+
+      <!-- Pagination -->
+      <!--
+        JS HOOK: id="pagination"
+        Dynamically generate page buttons based on total results / page size
+        Add .active class to current page button
+      -->
+      <nav class="pagination" id="pagination" aria-label="Search results pages">
+        <button class="page-btn" id="btn-prev-page" aria-label="Previous page" disabled>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="15 18 9 12 15 6"/></svg>
+        </button>
+        <button class="page-btn active" data-page="1">1</button>
+        <button class="page-btn" data-page="2">2</button>
+        <button class="page-btn" data-page="3">3</button>
+        <span style="color: var(--text-3); padding: 0 4px;">…</span>
+        <button class="page-btn" data-page="12">12</button>
+        <button class="page-btn" id="btn-next-page" aria-label="Next page">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="9 18 15 12 9 6"/></svg>
+        </button>
+      </nav>
+
+    </main><!-- /#main-results -->
+  </div><!-- /.page-wrapper -->
+
+</body>
+</html>

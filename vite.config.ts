@@ -5,6 +5,9 @@ import { resolve } from 'path'
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [react()],
+  server: {
+    historyApiFallback: true, // serve index.html for all routes → lets React Router handle /search
+  },
   build: {
     rollupOptions: {
       input: {
