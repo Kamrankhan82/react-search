@@ -4,10 +4,8 @@ import SearchClient from '@gaspl/search-client';
 import ReactPaginate from 'react-paginate';
 
 function SearchResultPage() {
-    const [searchParams] = useSearchParams();
-    const [query, setQuery] = useState(searchParams.get('q') ?? '');
-    // const rule = searchParams.get('rule');
-    const mainContent = document.querySelector<HTMLElement>('main#MainContent');
+    const [searchParams, setSearchParams] = useSearchParams();
+    const query = searchParams.get('q') ?? '';
     const pageSize = 30;
     const [totalHits, setTotalHits] = useState(0);
     const [products, setProducts] = useState([]);
@@ -39,11 +37,9 @@ function SearchResultPage() {
           active: false
          }
     ];
-    const [activeSort, setActiveSort] = useState<string[]>(sorts.find(s => s.active)?.value ?? []);
-    // Tracks whether the initial URL-read on mount has completed.
-    // Prevents [query], [selectedFilters], [activeSort] effects from
-    // pushing stale/empty state to the URL before restoration is done.
-    const isInitialized = useRef(false);
+
+    const sortFromURL = searchParams.get('sort');
+    const [activeSort, setActiveSort] = useState<string[]>(sortFromURL ? sorts.find(s => s.label === sortFromURL)?.value ?? [] : sorts.find(s => s.active)?.value ?? []);
 
     const [filters, setFilters] = useState([
         {
@@ -128,27 +124,52 @@ function SearchResultPage() {
         }
     ]);
     const [loading, setLoading] = useState(false);
-    // Tracks only what the user has selected — kept separate so API responses
-    // updating facet `values` don't re-trigger the filter useEffect.
-    const [selectedFilters, setSelectedFilters] = useState<Record<string, Record<string, string[]>>>({});
+
+    const selectedFilters = useMemo(()=> {
+      const result: Record<string, Record<string, string[]>> = {};
+
+      searchParams.forEach((value, key) => {
+        if (key.startsWith('f.')) {
+          const field = key.slice(2);
+          const values = value.split(',');
+
+          const matchedFilter = filters.find(f => f.field === field);
+          const type = matchedFilter?.type ?? 'textFacet';
+
+          if (!result[type]) result[type] = {};
+          result[type][field] = values;
+        }
+      });
+
+      return result;
+    },[searchParams]);
+
+    useEffect(()=> {
+      setFilters((prevFilters) => {
+        return prevFilters.map((filter) => {
+          const selectedValues = selectedFilters[filter.type]?.[filter.field] ?? [];
+          return { ...filter, selected: selectedValues };
+        });
+      });
+    }, [selectedFilters]);
+
     const credentials = {
         apiKey: 'HNKBXZ6WRZ53UHFQMAMB3TMN',
         secretKey: 'JFH1L4JRGKLVFTQY4FQPXIFV',
         productsCollection: 'QPI32C64SIDELBV7BSK5H5LD',
         suggestionsCollection: 'F1YH9BQ1DZGJ4I2XNPRI2QCJ'
     };
-    const searchClient = new SearchClient(credentials.apiKey, credentials.secretKey);
+    
+    const searchClient = useMemo(() => {
+      return new SearchClient(credentials.apiKey, credentials.secretKey)
+    }, []);
 
-    if (mainContent) {
-        if (query) {
-            mainContent.style.display = 'none';
-        } else {
-            mainContent.style.display = '';
-        }
-    }
+    useEffect(() => {
+      const mainContent = document.querySelector<HTMLElement>('main#MainContent');
+      if (!mainContent) return;
 
-    const search = (skip = 0, selected = selectedFilters, sort = activeSort) => {
-      setLoading(true);
+      mainContent.style.display = query ? 'none' : '';
+
       searchClient.filter('isSearchable = 1');
       searchClient.textFacets('collections', 'gender', 'product_type', 'size', 'color', 'fit', 'neck', 'sleeve');
       searchClient.numericFacets('discount', [
@@ -252,10 +273,13 @@ function SearchResultPage() {
         }
       ]);
       searchClient.count(pageSize);
+    }, []);
+
+    const search = (skip = 0, selected = selectedFilters, sort = activeSort) => {
+      setLoading(true);
       searchClient.skip(skip);
       // selected shape: { textFacet: { collections: ["Nike"] }, numericFacet: { discount: ["10-100"] } }
       Object.entries(selected).forEach(([facetType, fieldMap]) => {
-        console.log('facetType', facetType)
         if (typeof fieldMap === 'object' && !Array.isArray(fieldMap)) {
           Object.entries(fieldMap as Record<string, string[]>).forEach(([field, values]) => {
             if (values && values.length > 0) {
@@ -275,7 +299,6 @@ function SearchResultPage() {
       searchClient.search(query, credentials.productsCollection).then((response: any) => {
         setProducts(response.results);
         setTotalHits(response.totalHits);
-        setIsSearchInitiated(true);
         setFilters((prevFilters) => {
           const facetValues = {...response.textFacets, ...response.numericFacets};
           return prevFilters.map((filter: any) => {
@@ -293,66 +316,6 @@ function SearchResultPage() {
         setLoading(false);
       });
     }
-
-    /**
-     * Reads URL params on mount, restores all state, and fires the
-     * initial search — all in one place, bypassing the reactive effects
-     * (which only run for user-driven changes after mount).
-     */
-    const initFromURL = () => {
-      const url = new URL(window.location.href);
-      const params = Object.fromEntries(url.searchParams);
-
-      // ── Restore query ────────────────────────────────────────────────
-      const urlQuery = params.q ?? query;
-      if (params.q && params.q !== query) setQuery(params.q);
-
-      // ── Restore sort ─────────────────────────────────────────────────
-      let urlSort = activeSort;
-      if (params.sort) {
-        const matched = sorts.find(s => s.label === params.sort);
-        if (matched) {
-          urlSort = matched.value;
-          setActiveSort(matched.value);
-        }
-      }
-
-      // ── Restore filters from f.* params ─────────────────────────────
-      const restoredSelected: Record<string, Record<string, string[]>> = {};
-      const restoredChecked: Record<string, string[]> = {};
-
-      Object.entries(params).forEach(([key, value]) => {
-        if (key.startsWith('f.')) {
-          const field = key.slice(2);
-          const values = value.split(',').filter(Boolean);
-          const matchedFilter = filters.find(f => f.field === field);
-          const facetType = matchedFilter?.type ?? 'textFacet';
-          if (!restoredSelected[facetType]) restoredSelected[facetType] = {};
-          restoredSelected[facetType][field] = values;
-          restoredChecked[field] = values;
-        }
-      });
-
-      if (Object.keys(restoredSelected).length > 0) {
-        setSelectedFilters(restoredSelected);
-        setFilters(prev => prev.map(f => ({
-          ...f,
-          selected: restoredChecked[f.field] ?? f.selected,
-        })));
-      }
-
-      // ── Fire the initial search with values read directly from URL ───
-      // We pass urlSort and restoredSelected directly so we don't depend
-      // on async state setters having committed yet.
-      search(0, restoredSelected, urlSort);
-    }
-
-    useEffect(() => {
-      initFromURL();
-      // Mark init done — the [query]/[selectedFilters]/[activeSort] effects
-      // will now only fire for user-driven changes, not the initial mount.
-      isInitialized.current = true;
-    }, []);
 
     const pushFiltersToURL = (activefilters: Record<string, Record<string, string[]>>) => {
       const url = new URL(window.location.href);
@@ -382,49 +345,25 @@ function SearchResultPage() {
       window.history.pushState({}, '', url);
     };
     
-    useEffect(()=>{
-      if (!isInitialized.current) return; // skip the initial mount fire
-      search(0);
-    },[query]);
-
-    useEffect(()=>{
-        if (!isInitialized.current) return; // skip the initial mount fire
-        // Depends only on user selections, NOT on facet values from API responses.
-        // This avoids an infinite loop where search() -> setFilters(values) -> search().
-        pushFiltersToURL(selectedFilters);
-        search(0, selectedFilters);
-    },[selectedFilters]);
-    
-    
     const handleFilterChange = (event: any) => {
       const { value, name, checked } = event.target;
-      const filterType = name.split('.')[0];
-      const filterField = name.split('.')[1];
-      // Update selectedFilters (the useEffect dependency)
-      setSelectedFilters((prev) => {
-        const existing = prev[filterType]?.[filterField] ?? [];
-        const updated = checked
-          ? [...existing, value]                                    // ✅ plain string, not object
-          : existing.filter((v: string) => v !== value);
-        return { ...prev, [filterType]: { ...prev[filterType], [filterField]: updated } };
-      });
-      // Also keep filters in sync for the checkbox `checked` rendering
-      setFilters((prevFilters) => {
-        return prevFilters.map((filter) => {
-          if (filter.field === filterField) {                       // ✅ match on field, not the full name string
-            return {
-              ...filter,
-              selected: checked
-                ? [...filter.selected, value]
-                : filter.selected.filter((v: string) => v !== value)
-            }
-          }
-          return filter;
-        })
-      });
-      // search() is NOT called here — the useEffect([selectedFilters]) handles it
-      // after React commits the new selectedFilters state.
-    }
+      const [, field] = name.split('.');
+
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get(`f.${field}`)?.split(',') ?? [];
+
+      const updated = checked
+        ? [...current, value]
+        : current.filter(v => v !== value);
+
+      if (updated.length > 0) {
+        url.searchParams.set(`f.${field}`, updated.join(','));
+      } else {
+        url.searchParams.delete(`f.${field}`);
+      }
+
+      setSearchParams(url.searchParams);
+    };
 
     // ── Active-filter chip helpers ─────────────────────────────────────────
     /** Returns the human-readable label for a chip value. */
@@ -444,30 +383,32 @@ function SearchResultPage() {
     [selectedFilters]);
 
     const clearFilters = () => {
-      setSelectedFilters({});
-      setFilters((prevFilters) => {
-        return prevFilters.map((filter) => {
-          return {
-            ...filter,
-            selected: []
-          }
-        })
-      });
-    }
+      const url = new URL(window.location.href);
+
+      Array.from(url.searchParams.keys())
+        .filter(key => key.startsWith('f.'))
+        .forEach(key => url.searchParams.delete(key));
+
+      setSearchParams(url.searchParams);
+    };
 
     const removeFilter = (facetType: string, facetField: string, value: string) => {
-      setSelectedFilters((prev) => {
-        const existing = prev[facetType]?.[facetField] ?? [];
-        const updated = existing.filter((v: string) => v !== value);
-        return { ...prev, [facetType]: { ...prev[facetType], [facetField]: updated } };
-      });
+      const url = new URL(window.location.href);
+      const current = url.searchParams.get(`f.${facetField}`)?.split(',') ?? [];
+      const updated = current.filter(v => v !== value);
+
+      if (updated.length > 0) {
+        url.searchParams.set(`f.${facetField}`, updated.join(','));
+      } else {
+        url.searchParams.delete(`f.${facetField}`);
+      }
+
+      setSearchParams(url.searchParams);
+
       setFilters((prevFilters) => {
         return prevFilters.map((filter) => {
           if (filter.field === facetField) {
-            return {
-              ...filter,
-              selected: filter.selected.filter((v: string) => v !== value)
-            }
+            return { ...filter, selected: filter.selected.filter((v: string) => v !== value) }
           }
           return filter;
         })
@@ -481,14 +422,14 @@ function SearchResultPage() {
 
     const handleSortChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
       const newSort = event.target.value;
-      setActiveSort(newSort.split(','));
+      const newSortArr = newSort.split(',');
+      setActiveSort(newSortArr);
+      pushSortToURL(newSort); // push URL immediately from the event handler
     }
 
     useEffect(() => {
-      if (!isInitialized.current) return; // skip initial mount fire
-      pushSortToURL(activeSort.join(','));
-      search(0);
-    }, [activeSort]);
+      search(0, selectedFilters, activeSort);
+    }, [query, selectedFilters, activeSort]);
 
     // ── Skeleton components (first-load only) ──────────────────────────────
     const SkeletonFilterCard = ({ rows = 4 }: { rows?: number }) => (
@@ -565,7 +506,7 @@ function SearchResultPage() {
             <summary>{filter.label}</summary>
             <div className="sr-filter-body">
               {filter.values.map((val: any) => (
-                <>
+                <div key={val.label || `${val.min}-${val.max}`}>
                   {(filter.type === 'textFacet') && val.value > 0 && (
                     <label className="sr-check-row">
                       <input type="checkbox" name={filter.type + '.' + filter.field} value={val.label} onChange={handleFilterChange} checked={filter.selected.includes(val.label)} />
@@ -586,7 +527,7 @@ function SearchResultPage() {
                       )} <span className="sr-count">{val.count}</span>
                     </label>
                   )}
-                </>
+                </div>
               ))}
             </div>
           </details>
@@ -607,9 +548,15 @@ function SearchResultPage() {
         <div className="sr-meta-right">
 
           {/* <!-- JS HOOK: id="sr-sort" → change → re-sort results --> */}
-          <select className="sr-sort" id="sr-sort" aria-label="Sort results" onChange={handleSortChange}>
+          <select 
+            className="sr-sort" 
+            id="sr-sort" 
+            aria-label="Sort results" 
+            onChange={handleSortChange}
+            value={activeSort.join(',')}
+          >
             {sorts.map(sort => (
-              <option value={sort.value} key={sort.label}>{sort.label}</option>
+              <option value={sort.value.join(',')} key={sort.label}>{sort.label}</option>
             ))}
           </select>
 
